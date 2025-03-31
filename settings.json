@@ -1,0 +1,9 @@
+{
+    "lamp_set": [
+        "06:00",
+        "22:00"
+    ],
+    "water_day": 4,
+    "water_night": 1,
+    "time_water": 2
+}
