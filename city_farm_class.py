@@ -5,12 +5,10 @@ import os
 
 from devices import IDevice
 
-# Переменная для общения с диплеем
+# Переменная для общения с дисплеем
 end_byte = b'\xff\xff\xff'
 
 def setup_devices(devices: list[IDevice], debug: bool = True):
-    GPIO.setmode(GPIO.BCM)
-
     if debug: print("[setup]")
 
     for device in devices:

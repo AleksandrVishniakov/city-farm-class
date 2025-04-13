@@ -26,16 +26,16 @@ class IDevice:
         return not GPIO.input(self.__pin)
 
 class Lamp(IDevice):
-    def __init__(self, pin: int = 5):
+    def __init__(self, pin: int):
         super().__init__(pin)
         self._name = f"lamp[{pin}]"
 
 class Pump(IDevice):
-    def __init__(self, pin: int = 6):
+    def __init__(self, pin: int):
         super().__init__(pin)
         self._name = f"pump[{pin}]"
 
-class Dozer(IDevice):
-    def __init__(self, pin: int = 19):
+class Doser(IDevice):
+    def __init__(self, pin: int):
         super().__init__(pin)
         self._name = f"dozer[{pin}]"

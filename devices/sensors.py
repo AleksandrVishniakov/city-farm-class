@@ -12,55 +12,98 @@ import RPi.GPIO as GPIO
 
 class SensorsState:
     def __init__(self):
-        self.__temperature = 0
-        self.__humidity = 0
-        self.__co2 = 0
-        self.__ec = 0
-        self.__ph = 0
-        self.__water_value_dis = 0
-        self.__block_water = True
+        self._temperature = 0
+        self._humidity = 0
+        self._co2 = 0
+        self._ec = 0
+        self._ph = 0
+        self._water_value_dis = 0
+        self._block_water = True
+        self._subscribers = {}
 
-    def set_temperature(self, temp):
-        self.__temperature = temp
+    def subscribe(self, event):
+        def decorator(callback):
+            if event not in self._subscribers:
+                self._subscribers[event] = []
+            self._subscribers[event].append(callback)
+            return callback
 
-    def get_temperature(self):
-        return self.__temperature
+        return decorator
 
-    def set_humidity(self, hum):
-        self.__humidity = hum
+    def _notify(self, event, value):
+        if event in self._subscribers:
+            for callback in self._subscribers[event]:
+                callback(value)
 
-    def get_humidity(self):
-        return self.__humidity
+    @property
+    def temperature(self):
+        return self._temperature
 
-    def set_co2(self, co2):
-        self.__co2 = co2
+    @temperature.setter
+    def temperature(self, value):
+        if self._temperature != value:
+            self._temperature = value
+            self._notify("on_change:temperature", value)
 
-    def get_co2(self):
-        return self.__co2
+    @property
+    def humidity(self):
+        return self._humidity
 
-    def set_ec(self, ec):
-        self.__ec = ec
+    @humidity.setter
+    def humidity(self, value):
+        if self._humidity != value:
+            self._humidity = value
+            self._notify("on_change:humidity", value)
 
-    def get_ec(self):
-        return self.__ec
+    @property
+    def co2(self):
+        return self._co2
 
-    def set_ph(self, ph):
-        self.__ph = ph
+    @co2.setter
+    def co2(self, value):
+        if self._co2 != value:
+            self._co2 = value
+            self._notify("on_change:co2", value)
 
-    def get_ph(self):
-        return self.__ph
+    @property
+    def ec(self):
+        return self._ec
 
-    def set_water_value_dis(self, water_value_dis):
-        self.__water_value_dis = water_value_dis
+    @ec.setter
+    def ec(self, value):
+        if self._ec != value:
+            self._ec = value
+            self._notify("on_change:ec", value)
 
-    def get_water_value_dis(self):
-        return self.__water_value_dis
+    @property
+    def ph(self):
+        return self._ph
 
-    def set_block_water(self, block_water):
-        self.__block_water = block_water
+    @ph.setter
+    def ph(self, value):
+        if self._ph != value:
+            self._ph = value
+            self._notify("on_change:ph", value)
 
-    def get_block_water(self):
-        return self.__block_water
+    @property
+    def water_value_dis(self):
+        return self._water_value_dis
+
+    @water_value_dis.setter
+    def water_value_dis(self, value):
+        if self._water_value_dis != value:
+            self._water_value_dis = value
+            self._notify("on_change:water_value_dis", value)
+
+    @property
+    def block_water(self):
+        return self._block_water
+
+    @block_water.setter
+    def block_water(self, value):
+        if self._block_water != value:
+            self._block_water = value
+            self._notify("on_change:block_water", value)
 
 
 class ISensor:
@@ -154,7 +197,6 @@ class SensorsLifecycle:
             ph: PHSensor | None,
             low_ws: WaterSensor | None,
             high_ws: WaterSensor | None,
-            pump_off: callable,
     ):
         self.__state = SensorsState()
         self.__temp_sensor = temp
@@ -164,7 +206,6 @@ class SensorsLifecycle:
         self.__ph_sensor = ph
         self.__low_water_sensor = low_ws
         self.__high_water_sensor = high_ws
-        self.__pump_off = pump_off
 
     def get_state(self) -> SensorsState:
         return self.__state
@@ -181,53 +222,28 @@ class SensorsLifecycle:
             while True:
                 sleep(interval)
 
-                handle_sensor(
-                    self.__temp_sensor,
-                    self.__state.set_temperature,
-                    self.__state.get_temperature,
-                )
+                self.__state.temperature = handle_sensor(self.__temp_sensor, self.__state.temperature)
+                self.__state.humidity = handle_sensor(self.__hum_sensor, self.__state.humidity)
+                self.__state.co2 = handle_sensor(self.__co2_sensor, self.__state.co2)
+                self.__state.ec = handle_sensor(self.__ec_sensor, self.__state.ec)
+                self.__state.ph, = handle_sensor(self.__ph_sensor, self.__state.ph)
 
-                handle_sensor(
-                    self.__hum_sensor,
-                    self.__state.set_humidity,
-                    self.__state.get_humidity,
-                )
-
-                handle_sensor(
-                    self.__co2_sensor,
-                    self.__state.set_co2,
-                    self.__state.get_co2,
-                )
-
-                handle_sensor(
-                    self.__ec_sensor,
-                    self.__state.set_ec,
-                    self.__state.get_ec,
-                )
-
-                handle_sensor(
-                    self.__ph_sensor,
-                    self.__state.set_ph,
-                    self.__state.get_ph,
-                )
-
-                if not(self.__low_water_sensor is None or self.__high_water_sensor is None):
+                if not (self.__low_water_sensor is None or self.__high_water_sensor is None):
                     low_val = self.__low_water_sensor.read()
                     high_val = self.__high_water_sensor.read()
 
                     if high_val == 1 and low_val == 1:
-                        self.__state.set_block_water(True)
-                        self.__state.set_water_value_dis(0)
+                        self.__state.block_water = True
+                        self.__state.water_value_dis = 0
                     elif high_val == 0 and low_val == 0:
-                        self.__state.set_block_water(True)
-                        self.__state.set_water_value_dis(90)
+                        self.__state.block_water = True
+                        self.__state.water_value_dis = 90
                     elif high_val == 1 and low_val == 0:
-                        self.__state.set_block_water(False)
-                        self.__pump_off()
-                        self.__state.set_water_value_dis(100)
+                        self.__state.block_water = False
+                        self.__state.water_value_dis = 100
                     elif high_val == 0 and low_val == 1:
-                        self.__state.set_block_water(True)
-                        self.__state.set_water_value_dis(50)
+                        self.__state.block_water = True
+                        self.__state.water_value_dis = 50
 
         return listen
 
@@ -243,6 +259,7 @@ def read_sensor(sens: ISensor, alt_value):
         return alt_value
 
 
-def handle_sensor(sens: ISensor | None, setter: callable, getter: callable):
+def handle_sensor(sens: ISensor | None, alt):
     if not (sens is None):
-        setter(read_sensor(sens, getter()))
+        return read_sensor(sens, alt)
+    return None
