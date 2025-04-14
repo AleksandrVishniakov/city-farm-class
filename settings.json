@@ -1,9 +1,9 @@
 {
     "lamp_set": [
-        "06:00",
-        "22:00"
+        "07:00",
+        "21:00"
     ],
-    "water_day": 4,
-    "water_night": 1,
+    "water_day": 1,
+    "water_night": 0,
     "time_water": 2
 }
