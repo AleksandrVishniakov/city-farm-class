@@ -226,7 +226,7 @@ class SensorsLifecycle:
                 self.__state.humidity = handle_sensor(self.__hum_sensor, self.__state.humidity)
                 self.__state.co2 = handle_sensor(self.__co2_sensor, self.__state.co2)
                 self.__state.ec = handle_sensor(self.__ec_sensor, self.__state.ec)
-                self.__state.ph, = handle_sensor(self.__ph_sensor, self.__state.ph)
+                self.__state.ph = handle_sensor(self.__ph_sensor, self.__state.ph)
 
                 if not (self.__low_water_sensor is None or self.__high_water_sensor is None):
                     low_val = self.__low_water_sensor.read()
