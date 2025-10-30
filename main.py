@@ -81,7 +81,7 @@ def auto():
 
         watering_list = watering(convert_time(settings['lamp_set'][0]), convert_time(settings['lamp_set'][1]),
                                  settings['time_water'], settings['water_day'], settings['water_night'])
-        if watering_list[0] <= datetime.now() < watering_list[1] and not state.block_water:
+        if watering_list[0] <= datetime.now() < watering_list[1] and state.block_water:
             pump.on()
         else:
             pump.off()
@@ -141,7 +141,7 @@ def main():
             write_file(settings)
 
         if "water" in info:
-            waterings = list(map(int, info.split('/')[1].split(',')))
+1            waterings = list(map(int, info.split('/')[1].split(',')))
             setting = read_file()
             setting["time_water"] = waterings[2]
             setting["water_day"] = waterings[0]
