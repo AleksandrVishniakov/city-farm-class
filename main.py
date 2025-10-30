@@ -1,13 +1,11 @@
-import board
-from config.config import Pins
-import busio
 import RPi.GPIO as GPIO
-from mh_z19 import read_from_pwm
-from adafruit_dht import DHT22
-import adafruit_ads1x15.ads1115 as ADS
-from adafruit_ads1x15.analog_in import AnalogIn
-from city_farm_class import *
+import board
 from serial import Serial
+
+from city_farm_class import *
+# Импортируем функции для управления override
+from city_farm_class import set_sensor_override, get_sensor_override
+from config.config import Pins
 from devices.devices import Lamp, Pump, Doser
 from devices.sensors import *
 
@@ -65,7 +63,9 @@ def val(name, value):
 
 @sensors_state.subscribe("on_change:water_value_dis")
 def handle_water_value_dis_change(value):
-    if value == 100: pump.off()
+    # Останавливаем помпу только если датчик воды не отключен
+    if value == 100 and not get_sensor_override('water_sensor'):
+        pump.off()
 
 
 def auto():
@@ -74,14 +74,23 @@ def auto():
         if not auto_mode: continue
         state = sensors_state
         settings = read_file()
-        if convert_time(settings['lamp_set'][0]) <= datetime.now() < convert_time(settings['lamp_set'][1]):
+        if convert_time(
+                settings['lamp_set'][0]) <= datetime.now() < convert_time(
+            settings['lamp_set'][1]):
             lamp.on()
         else:
             lamp.off()
 
-        watering_list = watering(convert_time(settings['lamp_set'][0]), convert_time(settings['lamp_set'][1]),
-                                 settings['time_water'], settings['water_day'], settings['water_night'])
-        if watering_list[0] <= datetime.now() < watering_list[1] and state.block_water:
+        watering_list = watering(convert_time(settings['lamp_set'][0]),
+                                 convert_time(settings['lamp_set'][1]),
+                                 settings['time_water'], settings['water_day'],
+                                 settings['water_night'])
+
+        # ИСПРАВЛЕННАЯ ЛОГИКА: учитываем override датчика воды
+        water_ok = state.block_water or get_sensor_override('water_sensor')
+
+        if watering_list and watering_list[0] <= datetime.now() < \
+                watering_list[1] and water_ok:
             pump.on()
         else:
             pump.off()
@@ -104,7 +113,13 @@ def main():
                 lamp.off()
 
             if "pump_on" in info:
-                pump.on()
+                # Проверяем override перед ручным включением помпы
+                if sensors_state.block_water or get_sensor_override(
+                        'water_sensor'):
+                    pump.on()
+                else:
+                    print(
+                        "Помпа не запущена: низкий уровень воды и защита не отключена")
             elif "pump_off" in info:
                 pump.off()
 
@@ -141,12 +156,20 @@ def main():
             write_file(settings)
 
         if "water" in info:
-1            waterings = list(map(int, info.split('/')[1].split(',')))
+            waterings = list(map(int, info.split('/')[1].split(',')))
             setting = read_file()
             setting["time_water"] = waterings[2]
             setting["water_day"] = waterings[0]
             setting["water_night"] = waterings[1]
             write_file(setting)
+
+        # Обработка команд отключения датчиков
+        if "water_override_on" in info:
+            set_sensor_override('water_sensor', True)
+            print("Защита по воде отключена")
+        elif "water_override_off" in info:
+            set_sensor_override('water_sensor', False)
+            print("Защита по воде включена")
 
 
 def handle_page(page):
@@ -171,6 +194,8 @@ def handle_page(page):
         txt('t9.txt', sensors_state.ec)
         val('j0.val', sensors_state.water_value_dis)
         val('bt2.val', int(auto_mode))
+        # Отображение состояния override
+        val('bt3.val', int(get_sensor_override('water_sensor')))
         if auto_mode:
             val('bt0.val', int(lamp.is_working()))
             val('bt1.val', int(pump.is_working()))

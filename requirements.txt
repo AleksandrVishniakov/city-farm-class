@@ -1,0 +1,7 @@
+PyQt5==5.15.9
+pyserial==3.5
+RPi.GPIO==0.7.1
+adafruit-circuitpython-dht==3.7.10
+adafruit-circuitpython-ads1x15==2.2.15
+mh-z19==0.4.1
+adafruit-blinka==8.0.0

@@ -1,9 +1,27 @@
-from json import load, dump
-from datetime import datetime, time, timedelta
-import RPi.GPIO as GPIO
 import os
+from datetime import datetime, time, timedelta
+from json import load, dump
+
+import RPi.GPIO as GPIO
 
 from devices.devices import IDevice
+
+# Глобальная переменная для переопределения датчиков
+sensor_overrides = {
+    'water_sensor': False
+}
+
+
+def set_sensor_override(sensor_type, enabled):
+    """Установка переопределения датчика"""
+    global sensor_overrides
+    sensor_overrides[sensor_type] = enabled
+
+
+def get_sensor_override(sensor_type):
+    """Получение состояния переопределения датчика"""
+    return sensor_overrides.get(sensor_type, False)
+
 
 # Переменная для общения с дисплеем
 end_byte = b'\xff\xff\xff'
@@ -22,7 +40,9 @@ def setup_devices(devices: list[IDevice], debug: bool = True):
 def convert_time(item, hour=0):
     h = int(item.split(':')[0])
     m = int(item.split(':')[1])
-    return datetime.combine(datetime.today(), time(hour=h, minute=m)) + timedelta(hours=int(hour))
+    return datetime.combine(datetime.today(),
+                            time(hour=h, minute=m)) + timedelta(
+        hours=int(hour))
 
 
 last_settings = None
@@ -51,10 +71,11 @@ def read_file(path_to_file='settings.json'):
 
 def write_file(_list, path_to_file='settings.json'):
     with open(path_to_file, 'w') as f:
-            dump(_list, f, indent=4)
+        dump(_list, f, indent=4)
 
 
-def watering(start: datetime, end: datetime, time_watering: int, watering_day: int, watering_night: int):
+def watering(start: datetime, end: datetime, time_watering: int,
+             watering_day: int, watering_night: int):
     now = datetime.now()
     daytime = end - start
     night = timedelta(hours=24) - daytime
@@ -63,12 +84,14 @@ def watering(start: datetime, end: datetime, time_watering: int, watering_day: i
     all_events = []
     for days in [0, 1]:
         for i in range(watering_day):
-            event_start = (start + timedelta(days=days)) + interval_day * (i+0.5)
+            event_start = (start + timedelta(days=days)) + interval_day * (
+                        i + 0.5)
             event_end = event_start + timedelta(minutes=time_watering)
             all_events.append((event_start, event_end))
     for days in [0, 1]:
         for i in range(watering_night):
-            event_start = (end + timedelta(days=days)) + interval_night * (i+0.5)
+            event_start = (end + timedelta(days=days)) + interval_night * (
+                        i + 0.5)
             event_end = event_start + timedelta(minutes=time_watering)
             all_events.append((event_start, event_end))
     all_events.sort(key=lambda x: x[0])
@@ -93,7 +116,8 @@ def convert_txt(name, value):
 
 def print_settings(settings):
     print("Settings:")
-    print("  ", "lamp_set:", f"{settings['lamp_set'][0]} — {settings['lamp_set'][1]}")
+    print("  ", "lamp_set:",
+          f"{settings['lamp_set'][0]} — {settings['lamp_set'][1]}")
     print("  ", "water_day", settings['water_day'])
     print("  ", "water_night", settings['water_night'])
     print("  ", "time_water", settings['time_water'])
